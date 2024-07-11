@@ -1,6 +1,4 @@
 
-#pragma once
-
 #include "contrib_ops/cuda/bert/attention_kernel_options.h"
 #include "contrib_ops/cpu/bert/attention_common.h"
 #include "core/platform/env_var_utils.h"
