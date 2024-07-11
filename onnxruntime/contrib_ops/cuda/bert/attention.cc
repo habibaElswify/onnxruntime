@@ -9,6 +9,7 @@
 #include "contrib_ops/cuda/bert/bert_padding.h"
 #include "contrib_ops/cuda/bert/cutlass_fmha/memory_efficient_attention.h"
 #include "contrib_ops/cuda/bert/flash_attention/flash_api.h"
+#include "contrib_ops/cuda/bert/attention_kernel_options.h"
 
 using namespace onnxruntime::cuda;
 using namespace ::onnxruntime::common;
@@ -40,29 +41,26 @@ REGISTER_KERNEL_TYPED(MLFloat16)
 
 template <typename T>
 Attention<T>::Attention(const OpKernelInfo& info) : CudaKernel(info), AttentionBase(info, false) {
+  const AttentionKernelOptions* kernel_options = AttentionKernelOptions::GetInstance(this->SdpaKernel());
+
   disable_fused_self_attention_ =
-      sizeof(T) != 2 ||
-      ParseEnvironmentVariableWithDefault<bool>(attention::kDisableFusedSelfAttention, false);
+      sizeof(T) != 2 || !kernel_options->UseTrtFusedAttention();
 
   enable_trt_flash_attention_ =
-      sizeof(T) == 2 &&
-      !ParseEnvironmentVariableWithDefault<bool>(attention::kDisableTrtFlashAttention, false);
+      sizeof(T) == 2 && kernel_options->UseTrtFlashAttention();
 
   enable_fused_causal_attention_ =
-      sizeof(T) == 2 &&
-      ParseEnvironmentVariableWithDefault<bool>(attention::kEnableFusedCausalAttention, false);
+      sizeof(T) == 2 && kernel_options->UseTrtCausalAttention();
 
 #if USE_MEMORY_EFFICIENT_ATTENTION
-  disable_memory_efficient_attention_ =
-      ParseEnvironmentVariableWithDefault<bool>(attention::kDisableMemoryEfficientAttention, false);
+  disable_memory_efficient_attention_ = !kernel_options->UseEfficientAttention();
 #else
   disable_memory_efficient_attention_ = true;
 #endif
 
 #if USE_FLASH_ATTENTION
   disable_flash_attention_ =
-      sizeof(T) != 2 ||
-      onnxruntime::ParseEnvironmentVariableWithDefault<bool>(attention::kDisableFlashAttention, false);
+      sizeof(T) != 2 || !kernel_options->UseFlashAttention();
   min_seq_len_for_flash_attention_packed_qkv_ = ParseEnvironmentVariableWithDefault<int>(
       attention::kMinSeqLenForFlashAttentionPackedQKV,
       attention::kDefaultMinSeqLenForFlashAttentionPackedQKV);

@@ -35,7 +35,7 @@ REGISTER_KERNEL_TYPED(MLFloat16)
 
 template <typename T>
 PackedMultiHeadAttention<T>::PackedMultiHeadAttention(const OpKernelInfo& info)
-    : TrtFusedAttention<T>(), CudaKernel(info) {
+    : TrtFusedAttention<T>(info) {
   int64_t num_heads = 0;
   ORT_ENFORCE(info.GetAttr("num_heads", &num_heads).IsOK() && num_heads > 0);
   num_heads_ = static_cast<int32_t>(num_heads);
@@ -43,8 +43,7 @@ PackedMultiHeadAttention<T>::PackedMultiHeadAttention(const OpKernelInfo& info)
   scale_ = info.GetAttrOrDefault<float>("scale", 0.0f);
 
 #if USE_FLASH_ATTENTION
-  disable_flash_attention_ = sizeof(T) != 2 || onnxruntime::ParseEnvironmentVariableWithDefault<bool>(
-                                                   attention::kDisableFlashAttention, false);
+  disable_flash_attention_ = sizeof(T) != 2 || !this->attention_kernel_options_->UseFlashAttention();
   min_seq_len_for_flash_attention_packed_qkv_ = ParseEnvironmentVariableWithDefault<int>(
       attention::kMinSeqLenForFlashAttentionPackedQKV,
       attention::kDefaultMinSeqLenForFlashAttentionPackedQKV);
@@ -54,8 +53,7 @@ PackedMultiHeadAttention<T>::PackedMultiHeadAttention(const OpKernelInfo& info)
 #endif
 
 #if USE_MEMORY_EFFICIENT_ATTENTION
-  disable_memory_efficient_attention_ = onnxruntime::ParseEnvironmentVariableWithDefault<bool>(
-      attention::kDisableMemoryEfficientAttention, false);
+  disable_memory_efficient_attention_ = !this->attention_kernel_options_->UseEfficientAttention();
 #else
   disable_memory_efficient_attention_ = true;
 #endif

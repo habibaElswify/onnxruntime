@@ -33,12 +33,11 @@ REGISTER_KERNEL_TYPED(float)
 REGISTER_KERNEL_TYPED(MLFloat16)
 
 template <typename T>
-TrtFusedAttention<T>::TrtFusedAttention() {
-  disable_fused_runner_ = sizeof(T) != 2 ||
-                          ParseEnvironmentVariableWithDefault<bool>(attention::kDisableFusedSelfAttention, false);
-
-  enable_trt_flash_attention_ = sizeof(T) == 2 &&
-                                !ParseEnvironmentVariableWithDefault<bool>(attention::kDisableTrtFlashAttention, false);
+TrtFusedAttention<T>::TrtFusedAttention(const OpKernelInfo& info)
+    : CudaKernel(info) {
+  attention_kernel_options_ = AttentionKernelOptions::GetInstance(this->SdpaKernel());
+  disable_fused_runner_ = sizeof(T) != 2 || !attention_kernel_options_->UseTrtFusedAttention();
+  enable_trt_flash_attention_ = sizeof(T) == 2 && attention_kernel_options_->UseTrtFlashAttention();
 }
 
 template <typename T>
@@ -86,7 +85,8 @@ template class TrtFusedAttention<float>;
 template class TrtFusedAttention<MLFloat16>;
 
 template <typename T>
-PackedAttention<T>::PackedAttention(const OpKernelInfo& info) : TrtFusedAttention<T>(), CudaKernel(info) {
+PackedAttention<T>::PackedAttention(const OpKernelInfo& info)
+    : TrtFusedAttention<T>(info) {
   int64_t num_heads = 0;
   ORT_ENFORCE(info.GetAttr("num_heads", &num_heads).IsOK() && num_heads > 0);
   num_heads_ = static_cast<int32_t>(num_heads);

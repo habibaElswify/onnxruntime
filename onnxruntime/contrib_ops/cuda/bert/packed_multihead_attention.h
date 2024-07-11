@@ -10,7 +10,7 @@ namespace contrib {
 namespace cuda {
 
 template <typename T>
-class PackedMultiHeadAttention final : public TrtFusedAttention<T>, public CudaKernel {
+class PackedMultiHeadAttention final : public TrtFusedAttention<T> {
  public:
   PackedMultiHeadAttention(const OpKernelInfo& info);
   Status ComputeInternal(OpKernelContext* context) const override;

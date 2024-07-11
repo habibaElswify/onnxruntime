@@ -8,6 +8,7 @@
 #include "contrib_ops/cpu/bert/multihead_attention_helper.h"
 #include "contrib_ops/cuda/bert/cutlass_fmha/memory_efficient_attention.h"
 #include "contrib_ops/cuda/bert/flash_attention/flash_api.h"
+#include "contrib_ops/cuda/bert/attention_kernel_options.h"
 
 using namespace onnxruntime::cuda;
 using namespace ::onnxruntime::common;
@@ -47,15 +48,12 @@ MultiHeadAttention<T>::MultiHeadAttention(const OpKernelInfo& info)
   is_unidirectional_ = info.GetAttrOrDefault<int64_t>("unidirectional", 0) == 1;
   ORT_ENFORCE(!is_unidirectional_, "Unidirectional MHA does not support CUDA kernel. Consider using Attention or GQA instead.");
 
-  disable_fused_self_attention_ = sizeof(T) != 2 ||
-                                  ParseEnvironmentVariableWithDefault<bool>(attention::kDisableFusedSelfAttention, false);
-
-  enable_trt_flash_attention_ = sizeof(T) == 2 &&
-                                !ParseEnvironmentVariableWithDefault<bool>(attention::kDisableTrtFlashAttention, false);
+  const AttentionKernelOptions* kernel_options = AttentionKernelOptions::GetInstance(this->SdpaKernel());
+  disable_fused_self_attention_ = sizeof(T) != 2 || !kernel_options->UseTrtFusedAttention();
+  enable_trt_flash_attention_ = sizeof(T) == 2 && kernel_options->UseTrtFlashAttention();
 
 #if USE_FLASH_ATTENTION
-  disable_flash_attention_ = sizeof(T) != 2 ||
-                             ParseEnvironmentVariableWithDefault<bool>(attention::kDisableFlashAttention, false);
+  disable_flash_attention_ = sizeof(T) != 2 || !kernel_options->UseFlashAttention();
   min_seq_len_for_flash_attention_packed_qkv_ = ParseEnvironmentVariableWithDefault<int>(
       attention::kMinSeqLenForFlashAttentionPackedQKV,
       attention::kDefaultMinSeqLenForFlashAttentionPackedQKV);
@@ -65,13 +63,12 @@ MultiHeadAttention<T>::MultiHeadAttention(const OpKernelInfo& info)
 #endif
 
 #if USE_MEMORY_EFFICIENT_ATTENTION
-  disable_memory_efficient_attention_ = ParseEnvironmentVariableWithDefault<bool>(attention::kDisableMemoryEfficientAttention, false);
+  disable_memory_efficient_attention_ = !kernel_options->UseEfficientAttention();
 #else
   disable_memory_efficient_attention_ = true;
 #endif
 
-  disable_fused_cross_attention_ = sizeof(T) != 2 ||
-                                   ParseEnvironmentVariableWithDefault<bool>(attention::kDisableFusedCrossAttention, false);
+  disable_fused_cross_attention_ = sizeof(T) != 2 || !kernel_options->UseTrtCrossAttention();
 
   // Allocate cache buffers
   constexpr size_t cache_bytes = sizeof(int32_t) * (static_cast<size_t>(kCumulatedSequenceLengthCacheMaxBatchSize) + 1);
