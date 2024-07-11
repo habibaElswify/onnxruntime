@@ -268,7 +268,7 @@ Status PackedAttention<T>::ComputeInternal(OpKernelContext* context) const {
   const Tensor* relative_position_bias = context->Input<Tensor>(5);
 
   PackedAttentionParameters parameters;
-  parameters.use_tf32 = UseTF32();
+  parameters.use_tf32 = this->UseTF32();
   ORT_RETURN_IF_ERROR(CheckInputs(input->Shape(),
                                   weights->Shape(),
                                   bias->Shape(),
@@ -341,7 +341,7 @@ Status PackedAttention<T>::ComputeInternal(OpKernelContext* context) const {
   data.fused_runner = reinterpret_cast<void*>(fused_runner);
   data.use_memory_efficient_attention = use_memory_efficient_attention;
 
-  return QkvToContext<CudaT>(device_prop, cublas, Stream(context), parameters, data);
+  return QkvToContext<CudaT>(device_prop, cublas, this->Stream(context), parameters, data);
 }
 
 }  // namespace cuda

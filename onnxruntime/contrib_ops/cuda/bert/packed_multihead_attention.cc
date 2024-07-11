@@ -226,7 +226,7 @@ Status PackedMultiHeadAttention<T>::ComputeInternal(OpKernelContext* context) co
   const Tensor* relative_position_bias = context->Input<Tensor>(6);
 
   PackedAttentionParameters parameters;
-  parameters.use_tf32 = UseTF32();
+  parameters.use_tf32 = this->UseTF32();
   ORT_RETURN_IF_ERROR(CheckInputs(query->Shape(),
                                   key,
                                   value,
