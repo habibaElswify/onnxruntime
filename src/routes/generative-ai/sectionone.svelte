@@ -7,11 +7,7 @@
 	import browserExample from '../../images/browser_example_1024_rect_cropped.png';
 
 	let words = ['Mobile', 'Desktop', 'Browser'];
-	let images = [
-		mobileExample,
-		desktopExample,
-		browserExample
-	];
+	let images = [mobileExample, desktopExample, browserExample];
 
 	let currentWordIndex = 0;
 	let currentWord = words[currentWordIndex];
@@ -53,16 +49,16 @@
 				</div>
 			</div>
 			{#key currentImage}
-				<div class="mx-auto py-4 pl-4">
+				<div class="mx-auto py-4">
 					{#if show}
 						<span transition:fade={{ duration: 1000 }}>
-							<img class="w-3/4 mx-auto" src={currentImage} alt="device" />
+							<img class="w-1/2 mx-auto" src={currentImage} alt="device" />
 						</span>
 					{/if}
 				</div>
 			{/key}
 		</div>
-		<div class="mx-auto pt-8 pr-20">
+		<div class="mx-auto">
 			<p class="text-lg">Want to try running these yourself?</p>
 			<p class="mt-2 text-lg font-bold">Here's How!</p>
 			<ul class="steps steps-vertical overflow-auto">
